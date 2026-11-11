@@ -59,7 +59,7 @@ h2{font-size:15px;margin:0 0 12px;letter-spacing:-.01em}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 
 /* calendar grid */
-.calwrap{overflow:auto;max-height:calc(100vh - 290px);min-height:420px;border:1px solid var(--line);border-radius:var(--r);background:var(--line)}
+.calwrap{overflow:auto;height:calc(100vh - 290px);min-height:420px;border:1px solid var(--line);border-radius:var(--r);background:var(--line)}
 .cal{display:grid;grid-template-columns:260px repeat(var(--n),minmax(230px,1fr));gap:1px;width:100%;min-width:calc(260px + var(--n) * 231px)}
 .ch,.rl,.corner{background:var(--panel)}
 .corner{position:sticky;left:0;top:0;z-index:5;padding:12px 14px;color:var(--dim)}
@@ -168,7 +168,7 @@ h2{font-size:15px;margin:0 0 12px;letter-spacing:-.01em}
 @media (max-width:1100px){.sgrid{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.rrow{grid-template-columns:40px 1fr 1fr}.rrow>:nth-child(n+4){display:none}}
 @media (max-width:720px){
   .top{gap:10px;padding:0 12px;overflow-x:auto}.brand span{display:none}
-  main{padding:14px 12px 50px}.calwrap{max-height:none}.cal{grid-template-columns:150px repeat(var(--n),190px)}
+  main{padding:14px 12px 50px}.calwrap{height:auto;max-height:none}.cal{grid-template-columns:150px repeat(var(--n),190px)}
   .legend{display:none}.stats b{font-size:22px}
   .tab,.fc,.btn{min-height:44px}
 }
@@ -189,7 +189,6 @@ h2{font-size:15px;margin:0 0 12px;letter-spacing:-.01em}
 .empty-state{background:var(--bg);min-height:420px;display:grid;place-items:center;text-align:center}.empty-state .btn{margin-top:12px}
 .weekbar{gap:6px}.weekbar .fc small{font-size:11px;opacity:.65;margin-left:3px}
 
-.calwrap:has(.cal.one){min-height:0}
 
 button.ch{border:0;font:500 12px var(--mono);text-align:left;cursor:pointer;transition:background .15s}
 button.ch:hover{background:var(--panel2)}
