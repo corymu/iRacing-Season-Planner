@@ -43,12 +43,14 @@ function match(entry, names) {
 }
 const resolve = (entries, names) => new Set(entries.flatMap(e => match(e, names)));
 
+const INC = { cars: new Set(((D.included || {}).cars || []).filter(n => U.cars.includes(n))), tracks: new Set(((D.included || {}).tracks || []).filter(n => U.tracks.includes(n))) };
+
 /* ---------- owned lists: store exact names so the checklist can toggle them ---------- */
 function exactify() {
   for (const kind of ["cars", "tracks"]) {
     const keep = [], names = new Set();
     for (const e of S.owned[kind]) { const m = match(e, U[kind]); if (m.length) m.forEach(n => names.add(n)); else keep.push(e); }
-    S.owned[kind] = [...[...names].sort((a, b) => a.localeCompare(b)), ...keep];
+    S.owned[kind] = [...[...names].filter(n => !INC[kind].has(n)).sort((a, b) => a.localeCompare(b)), ...keep];
   }
 }
 
@@ -69,7 +71,7 @@ function scoreWith(r, cars) {
 function compute() {
   const st = S.prefs.settings;
   tierCache = new Map();
-  myCars = resolve(S.owned.cars, U.cars); myTracks = resolve(S.owned.tracks, U.tracks);
+  myCars = new Set([...resolve(S.owned.cars, U.cars), ...INC.cars]); myTracks = new Set([...resolve(S.owned.tracks, U.tracks), ...INC.tracks]);
   badCar = st.exclude_car_keywords.map(k => k.toLowerCase());
   const badSeries = st.exclude_series_keywords.map(k => k.toLowerCase());
   first = st.first_week || CUR;
@@ -160,15 +162,8 @@ function calGrid(rows) {
 }
 
 const noGarage = () => !S.owned.cars.length && !S.owned.tracks.length;
-function onboard() {
-  const st = S.prefs.settings;
-  return `<div class="onboard"><h2>Start by telling the planner what you own</h2>
-    <ol><li><b>Set your license</b> in the top right (now <b>${esc(st.license)}</b>) so you only see races you can enter.</li>
-    <li><b>Tick your cars and tracks</b> in the Garage. The calendar fills with races you can run.</li>
-    <li><b>Mark favorites</b> in Settings to rank the races you want most.</li></ol>
-    <div class="row"><button class="btn primary" data-goto="garage">Open Garage</button><button class="btn" data-showall>See every eligible race first</button></div></div>`;
-}
-const calBody = () => noGarage() && F.mode === "garage" ? onboard() : calGrid(filtered());
+const calBody = () => calGrid(filtered());
+const hint = () => noGarage() ? `<p class="hint-bar">Showing races for the cars and tracks included with membership. Bought something else? <button class="link" data-goto="garage">Add it in Garage</button></p>` : "";
 
 function stats() {
   const run = items.filter(r => r.runnable), cov = coverage();
@@ -183,7 +178,7 @@ function stats() {
 function calendarView() {
   const st = S.prefs.settings;
   return `<h1>Racing calendar</h1><p class="sub">Every week of ${esc(D.season)} you can race, one row per series. Click a race for the full picture.</p>
-  ${stats()}
+  ${hint()}${stats()}
   <div class="filters">
     <div class="sflabel"><label class="lbl" for="q">Search</label><input class="search" id="q" type="search" placeholder="Series, track or car" value="${esc(F.q)}"></div>
     <div class="chipset" role="group" aria-label="Category">${S.prefs.settings.categories.map(c => `<button class="fc cat" style="--c:${catColor(c)}" data-fk="cat${esc(c)}" data-cat="${esc(c)}" aria-pressed="${F.cats.includes(c)}"><i></i>${esc(c)} <span>${items.filter(r => r.cat === c && (F.mode === "all" || r.runnable)).length}</span></button>`).join("")}</div>
@@ -213,7 +208,7 @@ const GI = { cars: [], tracks: [] };
     const d = info[kind].get(n) || { cats: {}, series: new Set() };
     d.cats[r.cat] = (d.cats[r.cat] || 0) + 1; d.series.add(r.series); info[kind].set(n, d);
   }
-  for (const kind of ["cars", "tracks"]) GI[kind] = [...info[kind]].map(([name, d]) => ({ name, cat: Object.entries(d.cats).sort((a, b) => b[1] - a[1])[0][0], n: d.series.size }))
+  for (const kind of ["cars", "tracks"]) GI[kind] = [...info[kind]].filter(([n]) => !INC[kind].has(n)).map(([name, d]) => ({ name, cat: Object.entries(d.cats).sort((a, b) => b[1] - a[1])[0][0], n: d.series.size }))
     .sort((a, b) => a.name.localeCompare(b.name));
 })();
 const owns = (kind, name) => (kind === "cars" ? myCars : myTracks).has(name);
@@ -237,7 +232,9 @@ function garageList() {
 function garageCount() { const t = GI[G.kind].length, o = GI[G.kind].filter(it => owns(G.kind, it.name)).length; return `<b>${o}</b> of ${t} ${G.kind} owned`; }
 function garageView() {
   const cats = [...new Set(GI[G.kind].map(it => it.cat))].sort();
-  return `<h1>Garage</h1><p class="sub">Tick every car and track you own. The calendar only shows races you can run with them. Owning a track covers all its layouts.</p>
+  return `<h1>Garage</h1><p class="sub">Tick every car and track you have bought. The calendar only shows races you can run with them. Owning a track covers all its layouts.</p>
+  <details class="incl"><summary><b>Included with membership</b> <span>${INC.cars.size} cars · ${INC.tracks.size} tracks, already counted as yours</span></summary>
+    <div class="incl-cols"><div><h3>Cars</h3><p>${[...INC.cars].sort().map(esc).join(" · ")}</p></div><div><h3>Tracks</h3><p>${[...INC.tracks].sort().map(esc).join(" · ")}</p></div></div></details>
   <div class="filters">
     <div class="seg" role="group" aria-label="What to list"><button data-fk="gk1" data-gkind="cars" aria-pressed="${G.kind === "cars"}">Cars</button><button data-fk="gk2" data-gkind="tracks" aria-pressed="${G.kind === "tracks"}">Tracks</button></div>
     <div class="sflabel"><label class="lbl" for="gq">Search</label><input class="search" id="gq" type="search" placeholder="Name" value="${esc(G.q)}"></div>
