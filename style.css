@@ -268,3 +268,12 @@ button.ch:hover .go,button.ch:focus-visible .go{color:var(--ink)}
 .search:focus-visible,.search:focus{transition:none}
 .sel select,.sel.hot select{background-image:none}
 @media (max-width:720px){.sel select{inset:-1px;width:calc(100% + 2px);height:calc(100% + 2px)}.link{display:inline-flex;align-items:center;min-height:44px}}
+/* race cards: ~10% lighter than the panel, tinted ~10% with their preference color */
+.cell{--card:color-mix(in oklab,var(--panel) 90%,#fff 10%);background:var(--card)}
+.cell.g{background:color-mix(in oklab,var(--card) 90%,var(--g) 10%)}
+.cell.b{background:color-mix(in oklab,var(--card) 90%,var(--b) 10%)}
+.cell:hover{background:color-mix(in oklab,var(--card) 88%,#fff 12%)}
+.cell.g:hover{background:color-mix(in oklab,var(--card) 84%,var(--g) 16%)}
+.cell.b:hover{background:color-mix(in oklab,var(--card) 84%,var(--b) 16%)}
+.cell.locked,.cell.locked:hover{background:transparent}
+.cell .trk em,.cell .meta{color:var(--mute)}
