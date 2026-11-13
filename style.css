@@ -277,3 +277,17 @@ button.ch:hover .go,button.ch:focus-visible .go{color:var(--ink)}
 .cell.b:hover{background:color-mix(in oklab,var(--card) 84%,var(--b) 16%)}
 .cell.locked,.cell.locked:hover{background:transparent}
 .cell .trk em,.cell .meta{color:var(--mute)}
+
+/* buy list */
+.buys{display:grid;gap:12px}
+.buy{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:16px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;transition:transform .18s,border-color .18s}
+.buy:hover{transform:translateY(-2px);border-color:var(--line-hi)}
+.bn{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);font:700 17px var(--mono)}
+.buy:first-child .bn{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.bhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.bhead h2{margin:0;font-size:18px;letter-spacing:-.01em}
+.kind{font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:6px;border:1px solid var(--line)}
+.kind.car{color:#ffc24a;border-color:var(--amber-line)}.kind.track{color:var(--b);border-color:#2f6a8a}
+.bbody p{margin:6px 0 8px;color:var(--mute);font-size:14px}.bbody p b{color:var(--ink)}.mono{font-family:var(--mono)}
+.tags2{display:flex;flex-wrap:wrap;gap:6px}.chip2{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:12.5px;color:var(--mute)}.chip2.more{color:var(--dim)}
+.bside{display:grid;justify-items:end;gap:10px}.gain{font:700 26px var(--mono);color:var(--g);letter-spacing:-.03em}
+@media (max-width:720px){.buy{grid-template-columns:36px minmax(0,1fr);gap:12px}.bn{width:36px;height:36px}.bside{grid-column:1/-1;grid-auto-flow:column;justify-content:space-between;justify-items:start;align-items:center}}

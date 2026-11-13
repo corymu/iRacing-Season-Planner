@@ -112,6 +112,37 @@ function coverage() {
   return out;
 }
 
+/* Buy list: greedy, one purchase at a time (port of buy_list() in plan_races.py).
+   A race is worth 1 (you can run it) + its preference score. A race needing both a missing car and a missing
+   track shows no gain until one of them is owned. */
+function scoreFor(r, cars, tracks) {
+  const mine = r.cars.filter(c => cars.has(c));
+  return tracks.has(r.base) && mine.length ? scoreWith(r, mine).score : null;
+}
+function buyList(steps = 8) {
+  const cars = new Set(myCars), tracks = new Set(myTracks), out = [];
+  const candCars = new Set(items.flatMap(r => r.cars).filter(c => !cars.has(c)));
+  const candTracks = new Set(items.map(r => r.base).filter(t => !tracks.has(t)));
+  const val = (list, c, t) => list.reduce((n, r) => { const v = scoreFor(r, c, t); return v == null ? n : n + 1 + v; }, 0);
+  for (let step = 1; step <= steps; step++) {
+    let best = null;
+    for (const [kind, pool] of [["Car", candCars], ["Track", candTracks]]) for (const x of [...pool].sort()) {
+      const touched = items.filter(r => kind === "Car" ? r.cars.includes(x) : r.base === x);
+      const c2 = kind === "Car" ? new Set([...cars, x]) : cars, t2 = kind === "Track" ? new Set([...tracks, x]) : tracks;
+      const gain = val(touched, c2, t2) - val(touched, cars, tracks);
+      if (!best || gain > best.gain) best = { gain, kind, x, touched, c2, t2 };
+    }
+    if (!best || best.gain <= 0) break;
+    const fresh = best.touched.filter(r => scoreFor(r, cars, tracks) == null && scoreFor(r, best.c2, best.t2) != null);
+    out.push({ step, kind: best.kind, name: best.x, gain: best.gain, races: fresh.length,
+      liked: fresh.filter(r => scoreFor(r, best.c2, best.t2) > 0).length,
+      series: [...new Set(fresh.map(r => r.series))].sort(), weeks: [...new Set(fresh.map(r => r.wk))].sort((a, b) => a - b) });
+    (best.kind === "Car" ? cars : tracks).add(best.x);
+    (best.kind === "Car" ? candCars : candTracks).delete(best.x);
+  }
+  return out;
+}
+
 /* ---------- render helpers ---------- */
 const prefCount = r => Object.values(r.tiers).filter(t => t === 2).length;
 const tierCls = r => { const n = prefCount(r); return n >= 2 ? "g" : n === 1 ? "b" : ""; };
@@ -197,6 +228,21 @@ function coverageView() {
     <span class="pill ${w.missing ? "bad" : w.status === "OK" ? "ok" : "warn"}">${esc(w.status)}</span></div>
     ${w.missing ? `<div class="fix"><b>Fix:</b> ${esc(w.fix)}</div>` : ""}
     ${w.races.length ? w.races.map(r => `<button class="rrow" data-open="${r.id}"><span class="n">${r.score}</span><span>${esc(r.series)}<br><small>Class ${r.cls}</small></span><span>${esc(r.track)}</span><span>${esc(r.len)}</span><span>${esc(r.mine.join(", "))}</span></button>`).join("") : `<div class="none">No liked race you can run this week.</div>`}</section>`).join("")}</div>`;
+}
+
+function buyView() {
+  const list = buyList();
+  const cards = list.map(b => {
+    const chips = b.series.slice(0, 4).map(n => `<span class="chip2">${esc(splitSeries(n)[0])}</span>`).join("") + (b.series.length > 4 ? `<span class="chip2 more">+${b.series.length - 4} more</span>` : "");
+    return `<article class="buy"><b class="bn">${b.step}</b>
+      <div class="bbody"><div class="bhead"><span class="kind ${b.kind.toLowerCase()}">${b.kind}</span><h2>${esc(b.name)}</h2></div>
+      <p>Unlocks <b>${b.races}</b> race${b.races === 1 ? "" : "s"}${b.liked ? ` (<b>${b.liked}</b> you like)` : ""} in week${b.weeks.length === 1 ? "" : "s"} <span class="mono">${b.weeks.join(", ")}</span></p>
+      <div class="tags2">${chips}</div></div>
+      <div class="bside"><span class="gain" title="1 point per race unlocked plus its preference score">+${b.gain}</span>
+      <button class="btn sm" data-buy-kind="${b.kind}" data-buy-name="${esc(b.name)}">I own this</button></div></article>`;
+  }).join("");
+  return `<h1>Buy list</h1><p class="sub">The next purchases that unlock the most races for you, best first. Each step assumes you bought the one before it. Gain counts one point per race unlocked plus how much you like it.</p>
+  ${list.length ? `<div class="buys">${cards}</div>` : `<div class="none empty-state"><div>Nothing left to buy that unlocks a race this season.<br>Try a higher license or more categories in Settings.</div></div>`}`;
 }
 
 /* ---------- garage (owned checklist) ---------- */
@@ -321,7 +367,7 @@ function tomlPrefs() {
 const tomlOwned = () => `cars = [\n${S.owned.cars.map(c => "    " + q(c) + ",").join("\n")}\n]\n\ntracks = [\n${S.owned.tracks.map(c => "    " + q(c) + ",").join("\n")}\n]\n`;
 
 /* ---------- shell ---------- */
-const TABS = [["calendar", "Calendar"], ["coverage", "Coverage"], ["garage", "Garage"], ["settings", "Settings"]];
+const TABS = [["calendar", "Calendar"], ["coverage", "Coverage"], ["buy", "Buy List"], ["garage", "Garage"], ["settings", "Settings"]];
 function render() {
   const fk = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.fk || (document.activeElement.dataset.add ? "add:" + document.activeElement.dataset.add : "") : "";
   const cw = $("#calwrap"), pos = cw ? [cw.scrollLeft, cw.scrollTop] : null, sy = window.scrollY;
@@ -330,7 +376,7 @@ function render() {
   $("#season").innerHTML = `<span class="sn">${esc(D.season)}</span>
     <label class="sel hot"><span class="k">Week</span><span class="v">${fw}${fw === CUR ? " · now" : ""}</span><select data-fk="topWeek" data-topweek aria-label="Start week">${Array.from({ length: 12 }, (_, i) => i + 1).map(w => `<option value="${w}" ${w === fw ? "selected" : ""}>${w}${w === CUR ? " · now" : ""}</option>`).join("")}</select></label>
     <label class="sel"><span class="k">License</span><span class="v">${esc(st.license)}</span><select data-fk="topLic" data-set="license" aria-label="License class">${[...CLASSES].map(c => `<option ${c === st.license ? "selected" : ""}>${c}</option>`).join("")}</select></label>`;
-  $("#app").innerHTML = view === "settings" ? settingsView() : view === "garage" ? garageView() : view === "coverage" ? coverageView() : calendarView();
+  $("#app").innerHTML = view === "settings" ? settingsView() : view === "buy" ? buyView() : view === "garage" ? garageView() : view === "coverage" ? coverageView() : calendarView();
   const n = $("#calwrap"); if (n && pos) { n.scrollLeft = pos[0]; n.scrollTop = pos[1]; }
   window.scrollTo(0, sy);
   if (fk) { const el = fk.startsWith("add:") ? $(`[data-add="${fk.slice(4)}"]`) : $(`[data-fk="${fk}"]`); if (el) el.focus(); }
@@ -344,6 +390,7 @@ document.addEventListener("click", e => {
   if (d.tab) { view = d.tab; location.hash = d.tab; render(); window.scrollTo(0, 0); }
   else if (d.open != null) openDrawer(+d.open, t);
   else if (t.hasAttribute("data-close")) closeDrawer();
+  else if (d.buyKind) { setOwn(d.buyKind === "Car" ? "cars" : "tracks", d.buyName, true); changed(); }
   else if (d.gkind) { G.kind = d.gkind; G.cats = []; render(); }
   else if (d.gshow) { G.show = d.gshow; render(); }
   else if (d.gcat) { G.cats = G.cats.includes(d.gcat) ? G.cats.filter(c => c !== d.gcat) : [...G.cats, d.gcat]; render(); }
